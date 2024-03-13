@@ -3,6 +3,13 @@
 #include <pthread.h>
 #include <signal.h>
 
+volatile int sigint_flag = 0;
+int courseNum = 0;
+
+void sigintHandler(int sig){
+    sigint_flag = 1;
+
+}
 
 int main(int argc, char *argv[]) {
     int opt;
@@ -25,10 +32,10 @@ int main(int argc, char *argv[]) {
     char * log_filename = argv[3];
 
     //INSERT CODE HERE
-    for (int i = 0; i < argc; i++){
-        printf("Arg: %s\n", argv[i]);
-    }
-    int port = atoi(argv[1]);
+    // for (int i = 0; i < argc; i++){
+    //     printf("Arg: %s\n", argv[i]);
+    // }
+    ;
     char * coursePath = argv[2];
 
     //initialize the socket
@@ -42,7 +49,7 @@ int main(int argc, char *argv[]) {
     bzero(&servaddr, sizeof(servaddr));
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servaddr.sin_port = htons(port);
+    servaddr.sin_port = htons(port_number);
 
     int option = 1;
     
@@ -50,6 +57,9 @@ int main(int argc, char *argv[]) {
     {
     	exit(EXIT_FAILURE); 
     }
+     if (signal(SIGINT, sigintHandler) == SIG_ERR){
+		perror("Signal handler failed to install\n");
+		}
 
     //set all stats to 0
     curStats.clientCnt = 0;
@@ -65,13 +75,12 @@ int main(int argc, char *argv[]) {
     size_t len = 0;
     ssize_t read;
 
-    printf("|||||||||||||||READING FILE||||||||||||||\n");
     fp = fopen(coursePath, "r");
     if (fp == NULL)
         exit(2);
 
 
-    
+    //read the course log into the data structure
     int j = 0;
     while ((read = getline(&line, &len, fp)) != -1) {
         char * title = strtok(line, ";");
@@ -84,6 +93,8 @@ int main(int argc, char *argv[]) {
         course.maxCap = atoi(title);
 
         courseArray[j] = course;
+        courseNum++;
+
         
         j++;
         
@@ -95,7 +106,7 @@ int main(int argc, char *argv[]) {
     // printf("course title: %d\n", courseArray[2].title);
     
     //courseArray now holds each of the courses from the file
-    FILE * log_fp = fopen(log_filename, 'w');
+    FILE * log_fp = fopen(log_filename, "w");
     if (log_fp == NULL){
         exit(2);
     }
@@ -115,12 +126,32 @@ int main(int argc, char *argv[]) {
 
     pthread_mutex_destroy(&statsLock); 
 
+    //bind the server and start listening
+    if ((bind(sockfd, (SA*)&servaddr, sizeof(servaddr))) != 0) {
+        printf("socket bind failed\n");
+        exit(EXIT_FAILURE);
+    }
+    else
+        printf("Socket successfully binded\n");
 
-    struct sigaction myaction = {{0}};
-    myaction.sa_handler = sigint_handler;
+    // Now server is ready to listen and verification
+    if ((listen(sockfd, 1)) != 0) {
+        printf("Listen failed\n");
+        exit(EXIT_FAILURE);
+    }
+    
+    printf("Server initialized with %d courses.\n", courseNum);  
+    printf("Currently listening on port %d.\n", port_number);
 
-    if (sigaction)
+    //accept connections from client
+    int listen_fd = sockfd;
 
+
+
+
+
+
+   
     
 
 
